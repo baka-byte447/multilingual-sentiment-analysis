@@ -7,7 +7,7 @@ from pipeline.sentiment import get_sentiment_distribution
 # Configure Gemini
 if Config.GEMINI_API_KEY:
     genai.configure(api_key=Config.GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 def generate_summary(results):
     """

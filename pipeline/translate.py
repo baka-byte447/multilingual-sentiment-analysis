@@ -6,7 +6,7 @@ from config import Config
 # Configure Gemini
 if Config.GEMINI_API_KEY:
     genai.configure(api_key=Config.GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # Fallback translation models
 translation_cache = {}
