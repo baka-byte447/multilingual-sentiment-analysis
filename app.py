@@ -11,6 +11,12 @@ from pipeline.summarize import generate_summary
 from utils.file_handler import process_csv_file, validate_file
 from utils.exporter import export_to_csv, export_to_json
 
+import streamlit as st
+
+st.title("Multilingual Sentiment Analysis")
+st.write("Hello, world!")
+
+
 app = Flask(__name__)
 app.config.from_object(Config)
 
