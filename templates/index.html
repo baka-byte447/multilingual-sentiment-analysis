@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-upload me-2"></i>
+                    Multilingual Sentiment Analysis
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('analyze') }}" enctype="multipart/form-data">
+                    <!-- File Upload Section -->
+                    <div class="mb-4">
+                        <label for="file" class="form-label">
+                            <i class="fas fa-file-csv me-2"></i>
+                            Upload CSV File (Optional)
+                        </label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".csv,.txt">
+                        <div class="form-text">
+                            Upload a CSV file with reviews. Expected column names: 'review', 'text', 'comment', or 'feedback'.
+                        </div>
+                    </div>
+
+                    <div class="text-center mb-3">
+                        <span class="badge bg-secondary">OR</span>
+                    </div>
+
+                    <!-- Text Input Section -->
+                    <div class="mb-4">
+                        <label for="text_reviews" class="form-label">
+                            <i class="fas fa-keyboard me-2"></i>
+                            Enter Reviews (One per line)
+                        </label>
+                        <textarea class="form-control" id="text_reviews" name="text_reviews" rows="8" 
+                                placeholder="Enter your reviews here, one per line...&#10;&#10;Example:&#10;This product is amazing! I love it.&#10;Este producto es terrible, no lo recomiendo.&#10;Le service était correct, rien d'exceptionnel."></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Analyze Sentiment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card h-100 border-0 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-globe fa-2x text-primary mb-3"></i>
+                        <h6>Multilingual Support</h6>
+                        <small class="text-muted">Auto-detect and translate from 20+ languages</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-brain fa-2x text-success mb-3"></i>
+                        <h6>AI-Powered Analysis</h6>
+                        <small class="text-muted">Advanced sentiment analysis with confidence scores</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-download fa-2x text-info mb-3"></i>
+                        <h6>Export Results</h6>
+                        <small class="text-muted">Download results as CSV or JSON</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
