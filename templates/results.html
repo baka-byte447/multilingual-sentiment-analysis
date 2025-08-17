@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Summary Card -->
+    <div class="col-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Analysis Summary
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-lightbulb me-2"></i>AI Insights</h6>
+                        <p class="mb-0">{{ summary.insights }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-language me-2"></i>Languages Detected</h6>
+                        <div>
+                            {% for lang in summary.languages_detected %}
+                                <span class="badge bg-secondary me-1">{{ lang.upper() }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-table me-2"></i>
+                    Detailed Results
+                </h4>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadResults('csv')">
+                        <i class="fas fa-file-csv me-1"></i>CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadResults('json')">
+                        <i class="fas fa-file-code me-1"></i>JSON
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 5%">#</th>
+                                <th style="width: 35%">Original Text</th>
+                                <th style="width: 10%">Language</th>
+                                <th style="width: 30%">Translated Text</th>
+                                <th style="width: 15%">Sentiment</th>
+                                <th style="width: 5%">Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                            <tr>
+                                <td>{{ result.id }}</td>
+                                <td>
+                                    <div class="text-truncate" style="max-width: 300px;" 
+                                         title="{{ result.original_text }}">
+                                        {{ result.original_text }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ result.detected_language.upper() }}</span>
+                                </td>
+                                <td>
+                                    {% if result.translated_text %}
+                                        <div class="text-truncate" style="max-width: 300px;" 
+                                             title="{{ result.translated_text }}">
+                                            {{ result.translated_text }}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if result.sentiment_label == 'Positive' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-smile me-1"></i>Positive
+                                        </span>
+                                    {% elif result.sentiment_label == 'Negative' %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-frown me-1"></i>Negative
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-meh me-1"></i>Neutral
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ "%.1f" | format(result.confidence * 100) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Back to Analysis Button -->
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <a href="{{ url_for('index') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left me-2"></i>
+            Analyze More Reviews
+        </a>
+    </div>
+</div>
+
+<!-- Hidden form for downloads -->
+<form id="downloadForm" method="GET" style="display: none;">
+    <input type="hidden" id="downloadData" name="data" value="{{ results | tojson | e }}">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function downloadResults(format) {
+    const form = document.getElementById('downloadForm');
+    form.action = `/download/${format}`;
+    form.submit();
+}
+</script>
+{% endblock %}
