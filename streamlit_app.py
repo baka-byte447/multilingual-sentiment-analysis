@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import io
+import time
 from config import Config
 from pipeline.detect import detect_language
 from pipeline.translate import translate_text
@@ -13,49 +14,372 @@ from utils.exporter import export_to_csv, export_to_json
 # Page configuration
 st.set_page_config(
     page_title="Multilingual Sentiment Analysis",
-    page_icon="📊",
+    page_icon="🌌",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        text-align: center;
-        color: #1f77b4;
-        margin-bottom: 2rem;
+# Initialize session state for theme
+if 'current_theme' not in st.session_state:
+    st.session_state.current_theme = 'default'
+if 'theme_transition' not in st.session_state:
+    st.session_state.theme_transition = False
+
+# Dynamic theme definitions based on sentiment
+THEMES = {
+    'default': {
+        'primary': '#1a1a2e',
+        'secondary': '#16213e',
+        'accent': '#0f3460',
+        'text': '#e94560',
+        'background': '#0f0f23',
+        'card_bg': '#1a1a2e',
+        'border': '#e94560',
+        'gradient': 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)'
+    },
+    'positive': {
+        'primary': '#1a2e1a',
+        'secondary': '#162e16',
+        'accent': '#0f5a0f',
+        'text': '#45e945',
+        'background': '#0f230f',
+        'card_bg': '#1a2e1a',
+        'border': '#45e945',
+        'gradient': 'linear-gradient(135deg, #0f230f 0%, #1a2e1a 50%, #162e16 100%)'
+    },
+    'negative': {
+        'primary': '#2e1a1a',
+        'secondary': '#2e1616',
+        'accent': '#5a0f0f',
+        'text': '#e94545',
+        'background': '#230f0f',
+        'card_bg': '#2e1a1a',
+        'border': '#e94545',
+        'gradient': 'linear-gradient(135deg, #230f0f 0%, #2e1a1a 50%, #2e1616 100%)'
+    },
+    'neutral': {
+        'primary': '#2e2e1a',
+        'secondary': '#2e2e16',
+        'accent': '#5a5a0f',
+        'text': '#e9e945',
+        'background': '#23230f',
+        'card_bg': '#2e2e1a',
+        'border': '#e9e945',
+        'gradient': 'linear-gradient(135deg, #23230f 0%, #2e2e1a 50%, #2e2e16 100%)'
+    },
+    'mixed': {
+        'primary': '#2e1a2e',
+        'secondary': '#2e162e',
+        'accent': '#5a0f5a',
+        'text': '#e945e9',
+        'background': '#230f23',
+        'card_bg': '#2e1a2e',
+        'border': '#e945e9',
+        'gradient': 'linear-gradient(135deg, #230f23 0%, #2e1a2e 50%, #2e162e 100%)'
     }
-    .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
-    }
-    .sentiment-positive {
-        color: #28a745;
-        font-weight: bold;
-    }
-    .sentiment-negative {
-        color: #dc3545;
-        font-weight: bold;
-    }
-    .sentiment-neutral {
-        color: #6c757d;
-        font-weight: bold;
-    }
-</style>
-""", unsafe_allow_html=True)
+}
+
+def get_current_theme():
+    """Get the current theme based on sentiment"""
+    return THEMES.get(st.session_state.current_theme, THEMES['default'])
+
+def apply_theme_transition(new_theme):
+    """Apply smooth theme transition"""
+    st.session_state.theme_transition = True
+    st.session_state.current_theme = new_theme
+    time.sleep(0.1)  # Small delay for transition effect
+
+def get_css(theme):
+    """Generate dynamic CSS based on current theme"""
+    return f"""
+    <style>
+        /* Global Theme Variables */
+        :root {{
+            --primary-color: {theme['primary']};
+            --secondary-color: {theme['secondary']};
+            --accent-color: {theme['accent']};
+            --text-color: {theme['text']};
+            --background-color: {theme['background']};
+            --card-bg: {theme['card_bg']};
+            --border-color: {theme['border']};
+            --gradient: {theme['gradient']};
+        }}
+        
+        /* Smooth Theme Transitions */
+        * {{
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }}
+        
+        /* Main Background */
+        .main {{
+            background: var(--gradient) !important;
+            min-height: 100vh;
+        }}
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {{
+            width: 12px;
+        }}
+        
+        ::-webkit-scrollbar-track {{
+            background: var(--secondary-color);
+            border-radius: 10px;
+        }}
+        
+        ::-webkit-scrollbar-thumb {{
+            background: var(--accent-color);
+            border-radius: 10px;
+            border: 2px solid var(--secondary-color);
+        }}
+        
+        ::-webkit-scrollbar-thumb:hover {{
+            background: var(--text-color);
+        }}
+        
+        /* Header Styling */
+        .main-header {{
+            font-size: 4rem;
+            font-weight: 900;
+            text-align: center;
+            color: var(--text-color);
+            margin-bottom: 2rem;
+            text-shadow: 0 0 30px var(--text-color);
+            animation: glow 2s ease-in-out infinite alternate;
+            background: linear-gradient(45deg, var(--text-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }}
+        
+        @keyframes glow {{
+            from {{ filter: drop-shadow(0 0 20px var(--text-color)); }}
+            to {{ filter: drop-shadow(0 0 30px var(--accent-color)); }}
+        }}
+        
+        /* Sidebar Styling */
+        .css-1d391kg {{
+            background: var(--card-bg) !important;
+            border-right: 3px solid var(--border-color) !important;
+        }}
+        
+        /* Card Styling */
+        .metric-card {{
+            background: var(--card-bg) !important;
+            padding: 1.5rem;
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }}
+        
+        .metric-card:hover {{
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
+            border-color: var(--text-color);
+        }}
+        
+        /* Button Styling */
+        .stButton > button {{
+            background: linear-gradient(45deg, var(--accent-color), var(--text-color)) !important;
+            border: none !important;
+            border-radius: 25px !important;
+            padding: 12px 30px !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+        }}
+        
+        .stButton > button:hover {{
+            transform: translateY(-2px) scale(1.05) !important;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4) !important;
+            filter: brightness(1.2) !important;
+        }}
+        
+        /* Input Styling */
+        .stTextArea textarea {{
+            background: var(--card-bg) !important;
+            border: 2px solid var(--border-color) !important;
+            border-radius: 15px !important;
+            color: var(--text-color) !important;
+            font-size: 16px !important;
+            padding: 15px !important;
+            transition: all 0.3s ease !important;
+        }}
+        
+        .stTextArea textarea:focus {{
+            border-color: var(--text-color) !important;
+            box-shadow: 0 0 20px var(--text-color) !important;
+            transform: scale(1.02) !important;
+        }}
+        
+        /* File Uploader */
+        .stFileUploader {{
+            background: var(--card-bg) !important;
+            border: 2px dashed var(--border-color) !important;
+            border-radius: 15px !important;
+            padding: 20px !important;
+            transition: all 0.3s ease !important;
+        }}
+        
+        .stFileUploader:hover {{
+            border-color: var(--text-color) !important;
+            background: var(--secondary-color) !important;
+        }}
+        
+        /* Metrics */
+        .stMetric {{
+            background: var(--card-bg) !important;
+            padding: 20px !important;
+            border-radius: 15px !important;
+            border: 2px solid var(--border-color) !important;
+            transition: all 0.3s ease !important;
+        }}
+        
+        .stMetric:hover {{
+            transform: translateY(-3px) scale(1.03) !important;
+            border-color: var(--text-color) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+        }}
+        
+        /* Dataframe */
+        .stDataFrame {{
+            background: var(--card-bg) !important;
+            border-radius: 15px !important;
+            border: 2px solid var(--border-color) !important;
+            overflow: hidden !important;
+        }}
+        
+        /* Progress Bar */
+        .stProgress > div > div {{
+            background: linear-gradient(90deg, var(--accent-color), var(--text-color)) !important;
+            border-radius: 10px !important;
+        }}
+        
+        /* Spinner */
+        .stSpinner > div {{
+            border-color: var(--text-color) !important;
+            border-top-color: var(--accent-color) !important;
+        }}
+        
+        /* Info Boxes */
+        .stAlert {{
+            background: var(--card-bg) !important;
+            border: 2px solid var(--border-color) !important;
+            border-radius: 15px !important;
+            color: var(--text-color) !important;
+        }}
+        
+        /* Hover Effects for Whole Page */
+        .main:hover {{
+            filter: brightness(1.05) contrast(1.1);
+        }}
+        
+        /* Floating Particles Effect */
+        .particles {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }}
+        
+        .particle {{
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--text-color);
+            border-radius: 50%;
+            animation: float 6s infinite linear;
+            opacity: 0.6;
+        }}
+        
+        @keyframes float {{
+            0% {{ transform: translateY(100vh) rotate(0deg); opacity: 0; }}
+            10% {{ opacity: 0.6; }}
+            90% {{ opacity: 0.6; }}
+            100% {{ transform: translateY(-100px) rotate(360deg); opacity: 0; }}
+        }}
+        
+        /* Sentiment-specific animations */
+        .sentiment-positive {{
+            animation: positivePulse 2s ease-in-out infinite;
+        }}
+        
+        .sentiment-negative {{
+            animation: negativePulse 2s ease-in-out infinite;
+        }}
+        
+        .sentiment-neutral {{
+            animation: neutralPulse 2s ease-in-out infinite;
+        }}
+        
+        @keyframes positivePulse {{
+            0%, 100% {{ transform: scale(1); }}
+            50% {{ transform: scale(1.05); }}
+        }}
+        
+        @keyframes negativePulse {{
+            0%, 100% {{ transform: scale(1); }}
+            50% {{ transform: scale(0.95); }}
+        }}
+        
+        @keyframes neutralPulse {{
+            0%, 100% {{ transform: scale(1); }}
+            50% {{ transform: scale(1.02); }}
+        }}
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {{
+            .main-header {{
+                font-size: 2.5rem;
+            }}
+        }}
+    </style>
+    
+    <!-- Floating Particles -->
+    <div class="particles">
+        <div class="particle" style="left: 10%; animation-delay: 0s;"></div>
+        <div class="particle" style="left: 20%; animation-delay: 1s;"></div>
+        <div class="particle" style="left: 30%; animation-delay: 2s;"></div>
+        <div class="particle" style="left: 40%; animation-delay: 3s;"></div>
+        <div class="particle" style="left: 50%; animation-delay: 4s;"></div>
+        <div class="particle" style="left: 60%; animation-delay: 5s;"></div>
+        <div class="particle" style="left: 70%; animation-delay: 6s;"></div>
+        <div class="particle" style="left: 80%; animation-delay: 7s;"></div>
+        <div class="particle" style="left: 90%; animation-delay: 8s;"></div>
+    </div>
+    """
 
 def main():
-    # Header
-    st.markdown('<h1 class="main-header">🌍 Multilingual Sentiment Analysis</h1>', unsafe_allow_html=True)
+    # Get current theme
+    theme = get_current_theme()
+    
+    # Apply CSS
+    st.markdown(get_css(theme), unsafe_allow_html=True)
+    
+    # Header with dynamic theme
+    st.markdown('<h1 class="main-header">🌌 Multilingual Sentiment Analysis</h1>', unsafe_allow_html=True)
     st.markdown("---")
     
-    # Sidebar for input options
+    # Sidebar with enhanced styling
     with st.sidebar:
+        st.markdown(f"""
+        <div style="
+            background: {theme['card_bg']};
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid {theme['border']};
+            margin-bottom: 20px;
+        ">
+            <h2 style="color: {theme['text']}; text-align: center;">🎛️ Control Panel</h2>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.header("📥 Input Options")
         input_method = st.radio(
             "Choose input method:",
@@ -69,20 +393,45 @@ def main():
         show_confidence = st.checkbox("Show confidence scores", value=True)
         
         st.markdown("---")
+        st.header("🎨 Theme Preview")
+        theme_preview = st.selectbox(
+            "Preview themes:",
+            ["default", "positive", "negative", "neutral", "mixed"],
+            index=0
+        )
+        
+        if st.button("Apply Theme Preview"):
+            apply_theme_transition(theme_preview)
+            st.rerun()
+        
+        st.markdown("---")
         st.header("ℹ️ About")
         st.info("""
-        This app analyzes sentiment in multiple languages:
-        - Detects language automatically
-        - Translates non-English text
-        - Provides sentiment analysis
-        - Generates AI-powered insights
+        **AI-Powered Sentiment Analysis**
+        
+        ✨ **Features:**
+        - 🌍 Multi-language support
+        - 🔍 Automatic language detection
+        - 📊 Real-time sentiment analysis
+        - 🤖 AI-powered insights
+        - 🎨 Dynamic theme system
         """)
     
     # Main content area
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.header("📝 Input Data")
+        st.markdown(f"""
+        <div style="
+            background: {theme['card_bg']};
+            padding: 25px;
+            border-radius: 20px;
+            border: 3px solid {theme['border']};
+            margin-bottom: 20px;
+        ">
+            <h2 style="color: {theme['text']}; text-align: center;">📝 Input Data</h2>
+        </div>
+        """, unsafe_allow_html=True)
         
         if input_method == "Text Input":
             text_input = st.text_area(
@@ -109,7 +458,17 @@ def main():
                     process_file_upload(uploaded_file, show_translations, show_confidence)
     
     with col2:
-        st.header("📊 Quick Stats")
+        st.markdown(f"""
+        <div style="
+            background: {theme['card_bg']};
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid {theme['border']};
+        ">
+            <h3 style="color: {theme['text']}; text-align: center;">📊 Quick Stats</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
         if 'results' in st.session_state and st.session_state.results:
             display_quick_stats(st.session_state.results)
 
@@ -186,26 +545,40 @@ def analyze_reviews(reviews, show_translations, show_confidence):
     return results
 
 def display_results(results, show_translations, show_confidence):
-    """Display analysis results"""
+    """Display analysis results with dynamic theming"""
+    theme = get_current_theme()
+    
     st.markdown("---")
-    st.header("📈 Analysis Results")
     
     # Generate summary
     summary = generate_summary(results)
     
-    # Display summary metrics
+    # Determine overall theme based on sentiment
+    overall_sentiment = summary['overall_sentiment'].lower()
+    if overall_sentiment in ['positive', 'negative', 'neutral', 'mixed']:
+        apply_theme_transition(overall_sentiment)
+        theme = get_current_theme()
+        st.rerun()
+    
+    st.markdown(f"""
+    <div style="
+        background: {theme['card_bg']};
+        padding: 30px;
+        border-radius: 20px;
+        border: 3px solid {theme['border']};
+        margin: 20px 0;
+    ">
+        <h2 style="color: {theme['text']}; text-align: center;">📈 Analysis Results</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Display summary metrics with enhanced styling
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.metric("Total Reviews", summary['total_reviews'])
     
     with col2:
-        sentiment_color = {
-            'Positive': 'green',
-            'Negative': 'red',
-            'Mixed': 'orange',
-            'Neutral': 'gray'
-        }.get(summary['overall_sentiment'], 'blue')
         st.metric("Overall Sentiment", summary['overall_sentiment'])
     
     with col3:
@@ -216,12 +589,32 @@ def display_results(results, show_translations, show_confidence):
         negative_pct = summary['distribution']['Negative']
         st.metric("Negative", f"{negative_pct:.1f}%")
     
-    # Display AI insights
-    st.subheader("🤖 AI Insights")
-    st.info(summary['insights'])
+    # Display AI insights with enhanced styling
+    st.markdown(f"""
+    <div style="
+        background: {theme['card_bg']};
+        padding: 25px;
+        border-radius: 15px;
+        border: 2px solid {theme['border']};
+        margin: 20px 0;
+    ">
+        <h3 style="color: {theme['text']}; margin-bottom: 15px;">🤖 AI Insights</h3>
+        <p style="color: {theme['text']}; font-size: 16px; line-height: 1.6;">{summary['insights']}</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Display detailed results
-    st.subheader("📋 Detailed Results")
+    st.markdown(f"""
+    <div style="
+        background: {theme['card_bg']};
+        padding: 25px;
+        border-radius: 15px;
+        border: 2px solid {theme['border']};
+        margin: 20px 0;
+    ">
+        <h3 style="color: {theme['text']}; margin-bottom: 15px;">📋 Detailed Results</h3>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Create DataFrame for display
     display_data = []
@@ -244,8 +637,19 @@ def display_results(results, show_translations, show_confidence):
     df_display = pd.DataFrame(display_data)
     st.dataframe(df_display, use_container_width=True)
     
-    # Download options
-    st.subheader("💾 Download Results")
+    # Download options with enhanced styling
+    st.markdown(f"""
+    <div style="
+        background: {theme['card_bg']};
+        padding: 25px;
+        border-radius: 15px;
+        border: 2px solid {theme['border']};
+        margin: 20px 0;
+    ">
+        <h3 style="color: {theme['text']}; margin-bottom: 15px;">💾 Download Results</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -267,7 +671,9 @@ def display_results(results, show_translations, show_confidence):
         )
 
 def display_quick_stats(results):
-    """Display quick statistics in the sidebar"""
+    """Display quick statistics in the sidebar with enhanced styling"""
+    theme = get_current_theme()
+    
     if not results:
         st.info("No results to display")
         return
@@ -277,20 +683,56 @@ def display_quick_stats(results):
     negative = len([r for r in results if r['sentiment_label'] == 'Negative'])
     neutral = len([r for r in results if r['sentiment_label'] == 'Neutral'])
     
+    # Enhanced metrics display
+    st.markdown(f"""
+    <div style="
+        background: {theme['card_bg']};
+        padding: 15px;
+        border-radius: 10px;
+        border: 2px solid {theme['border']};
+        margin: 10px 0;
+        text-align: center;
+    ">
+        <h4 style="color: {theme['text']}; margin: 0;">📊 Statistics</h4>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.metric("Total", total)
     st.metric("Positive", positive)
     st.metric("Negative", negative)
     st.metric("Neutral", neutral)
     
-    # Language distribution
+    # Language distribution with enhanced styling
     languages = {}
     for result in results:
         lang = result['detected_language']
         languages[lang] = languages.get(lang, 0) + 1
     
-    st.subheader("🌍 Languages")
+    st.markdown(f"""
+    <div style="
+        background: {theme['card_bg']};
+        padding: 15px;
+        border-radius: 10px;
+        border: 2px solid {theme['border']};
+        margin: 10px 0;
+    ">
+        <h4 style="color: {theme['text']}; margin-bottom: 10px;">🌍 Languages</h4>
+    </div>
+    """, unsafe_allow_html=True)
+    
     for lang, count in languages.items():
-        st.write(f"{lang.upper()}: {count}")
+        st.markdown(f"""
+        <div style="
+            background: {theme['secondary']};
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 5px 0;
+            border-left: 4px solid {theme['text']};
+        ">
+            <span style="color: {theme['text']}; font-weight: bold;">{lang.upper()}:</span>
+            <span style="color: {theme['text']}; float: right;">{count}</span>
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
